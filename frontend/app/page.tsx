@@ -1,10 +1,11 @@
 import URLChatbot from "./components/chat";
 
-
 const Home = () => {
-  return <>
-  <URLChatbot />
-  </>;
+  return (
+    <>
+      <URLChatbot />
+    </>
+  );
 };
 
 export default Home;
