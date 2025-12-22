@@ -14,7 +14,7 @@ const scrapeAndAskGemini = async (req, res, next) => {
 
     const questionWithContext = `about ${title}, ${question}`
 
-    const geminiResponse = await getAnswerFromGemini(questionWithContext)
+    const geminiResponse = await getAnswerFromGemini(questionWithContext, content)
 
     return res.status(200).json({ message: geminiResponse })
   } catch (err) {
