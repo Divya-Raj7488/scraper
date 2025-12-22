@@ -1,5 +1,4 @@
 const errorHandler = (err, req, res, next) => {
-//   console.log(err.response)
   const statusCode = err.response?.status
   const mssg = err.message
   return res
