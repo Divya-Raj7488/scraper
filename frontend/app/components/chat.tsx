@@ -1,17 +1,13 @@
 "use client";
 import { useState } from "react";
 import { Send, Loader2, Globe } from "lucide-react";
+import axios, { AxiosError } from "axios";
+import ReactMarkdown from "react-markdown";
+import askScraper from "../services/fetchResponse";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
-}
-
-interface ClaudeResponse {
-  content: Array<{
-    type: string;
-    text: string;
-  }>;
 }
 
 export default function URLChatbot() {
@@ -42,31 +38,15 @@ export default function URLChatbot() {
     setLoading(true);
 
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          messages: [
-            {
-              role: "user",
-              content: `Based on the content from this URL: ${url}, please answer the following question: ${input}`,
-            },
-          ],
-        }),
-      });
+      const response = await askScraper(url, input);
 
-      const data: ClaudeResponse = await response.json();
+      const data: { message: string } = response.data as { message: string };
       const assistantMessage: Message = {
         role: "assistant",
-        content: data.content[0].text,
+        content: data.message,
       };
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
-      console.error("Error:", error);
       setMessages((prev) => [
         ...prev,
         {
@@ -99,10 +79,9 @@ export default function URLChatbot() {
 
   if (!urlSubmitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-          <div className="flex items-center justify-center mb-6">
-          </div>
+          <div className="flex items-center justify-center mb-6"></div>
           <h1 className="text-xl font-bold text-gray-800 text-center mb-2">
             URL Chatbot
           </h1>
@@ -131,7 +110,7 @@ export default function URLChatbot() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 flex flex-col justify-end">
       <div className="bg-white shadow-md border-b border-gray-200 p-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -166,7 +145,13 @@ export default function URLChatbot() {
                     : "bg-white text-gray-800 shadow-md"
                 }`}
               >
-                {msg.content}
+                {msg.role === "assistant" ? (
+                  <div className="prose prose-sm max-w-none">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </div>
+                ) : (
+                  msg.content
+                )}
               </div>
             </div>
           ))}
@@ -181,7 +166,7 @@ export default function URLChatbot() {
         </div>
       </div>
 
-      <div className="bg-white border-t border-gray-200 p-4">
+      <div className="bg-white border-t border-gray-200 p-4 sticky bottom-0 ">
         <div className="max-w-4xl mx-auto">
           <div className="flex gap-2">
             <input
