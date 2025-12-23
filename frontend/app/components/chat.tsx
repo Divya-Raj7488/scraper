@@ -1,9 +1,11 @@
 "use client";
 import { useState } from "react";
 import { Send, Loader2, Globe } from "lucide-react";
-import axios, { AxiosError } from "axios";
+import { useMutation } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
-import askScraper from "../services/fetchResponse";
+import { askScraper } from "../services/fetchResponse";
+import UrlForm from "./urlForm";
+import ChatBox from "./chatBox";
 
 interface Message {
   role: "user" | "assistant";
@@ -15,7 +17,28 @@ export default function URLChatbot() {
   const [urlSubmitted, setUrlSubmitted] = useState<boolean>(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
+
+  const mutation = useMutation({
+    mutationFn: ({ url, question }: { url: string; question: string }) =>
+      askScraper(url, question),
+    onSuccess: (data) => {
+      const assistantMessage: Message = {
+        role: "assistant",
+        content: data.message,
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
+    },
+    onError: () => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "Sorry, I encountered an error processing your question. Please try again.",
+        },
+      ]);
+    },
+  });
 
   const handleUrlSubmit = (): void => {
     if (url.trim()) {
@@ -29,35 +52,14 @@ export default function URLChatbot() {
     }
   };
 
-  const handleQuestionSubmit = async (): Promise<void> => {
-    if (!input.trim() || loading) return;
+  const handleQuestionSubmit = (): void => {
+    if (!input.trim() || mutation.isPending) return;
 
     const userMessage: Message = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
+
+    mutation.mutate({ url, question: input });
     setInput("");
-    setLoading(true);
-
-    try {
-      const response = await askScraper(url, input);
-
-      const data: { message: string } = response.data as { message: string };
-      const assistantMessage: Message = {
-        role: "assistant",
-        content: data.message,
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content:
-            "Sorry, I encountered an error processing your question. Please try again.",
-        },
-      ]);
-    } finally {
-      setLoading(false);
-    }
   };
 
   const resetChat = (): void => {
@@ -77,118 +79,26 @@ export default function URLChatbot() {
     }
   };
 
-  if (!urlSubmitted) {
+  if (urlSubmitted) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-          <div className="flex items-center justify-center mb-6"></div>
-          <h1 className="text-xl font-bold text-gray-800 text-center mb-2">
-            URL Chatbot
-          </h1>
-          <p className="text-gray-600 text-center mb-8">
-            Enter a URL to start asking questions about its content
-          </p>
-          <div>
-            <input
-              type="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://example.com"
-              onKeyDown={handleKeyDown}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors mb-4"
-            />
-            <button
-              onClick={handleUrlSubmit}
-              className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
-            >
-              Start Chatting
-            </button>
-          </div>
-        </div>
-      </div>
+      <ChatBox
+        resetChat={resetChat}
+        url={url}
+        messages={messages}
+        mutation={mutation}
+        input={input}
+        setInput={setInput}
+        handleKeyDown={handleKeyDown}
+        handleQuestionSubmit={handleQuestionSubmit}
+      />
     );
   }
-
   return (
-    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 flex flex-col justify-end">
-      <div className="bg-white shadow-md border-b border-gray-200 p-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Globe className="w-6 h-6 text-indigo-600" />
-            <div>
-              <h2 className="font-semibold text-gray-800">Chatting about:</h2>
-              <p className="text-sm text-gray-600 truncate max-w-md">{url}</p>
-            </div>
-          </div>
-          <button
-            onClick={resetChat}
-            className="px-4 py-2 text-sm text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-          >
-            New URL
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="max-w-4xl mx-auto space-y-4">
-          {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex ${
-                msg.role === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
-              <div
-                className={`max-w-xl px-4 py-3 rounded-2xl ${
-                  msg.role === "user"
-                    ? "bg-indigo-600 text-white"
-                    : "bg-white text-gray-800 shadow-md"
-                }`}
-              >
-                {msg.role === "assistant" ? (
-                  <div className="prose prose-sm max-w-none">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
-                  </div>
-                ) : (
-                  msg.content
-                )}
-              </div>
-            </div>
-          ))}
-          {loading && (
-            <div className="flex justify-start">
-              <div className="bg-white text-gray-800 shadow-md px-4 py-3 rounded-2xl flex items-center gap-2">
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Thinking...</span>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="bg-white border-t border-gray-200 p-4 sticky bottom-0 ">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask a question about the URL..."
-              className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors"
-              disabled={loading}
-            />
-            <button
-              title="send message"
-              onClick={handleQuestionSubmit}
-              disabled={loading || !input.trim()}
-              className="bg-indigo-600 text-white p-3 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Send className="w-6 h-6" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <UrlForm
+      url={url}
+      setUrl={setUrl}
+      handleKeyDown={handleKeyDown}
+      handleUrlSubmit={handleUrlSubmit}
+    />
   );
 }
