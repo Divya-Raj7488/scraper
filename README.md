@@ -34,17 +34,27 @@ The entire application is **Dockerized** and runs using a single Docker Compose 
 
 ### Environment Variables
 
-Create a `.env` file:
+Create a `.env` file in backend directory:
 
 ```env
 GEMINI_API_KEY=your_gemini_api_key
 ```
 ---
 
+### Create docker images locally
+
+
+```bash
+docker build -t ai-frontend ./frontend
+
+docker build -t ai-backend ./backend
+
+```
+---
 ### Start the App
 
 ```bash
-docker compose up --build
+docker compose up
 ```
 
 This will spin up three containers:
